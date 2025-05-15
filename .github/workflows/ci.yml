@@ -1,10 +1,5 @@
 name: CI Pipeline
 
-# 👇 1) permisos para OIDC
-permissions:
-  contents: read        # checkout del repo
-  id-token: write       # para azure/login via OIDC
-
 on:
   push:
     branches: [ main ]
@@ -43,7 +38,8 @@ jobs:
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
             | gpg --dearmor \
             | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] \
+            https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
             | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
@@ -72,7 +68,7 @@ jobs:
         run: pytest -q
 
   # ------------------------------------------------------------
-  # 2) Integration tests contra tu Azure SQL real (via OIDC)
+  # 2) Integration tests contra tu Azure SQL real
   # ------------------------------------------------------------
   integration:
     needs: test
@@ -82,12 +78,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Login to Azure via OIDC
+      - name: Login to Azure
         uses: azure/login@v1
         with:
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
-        # no client-secret: usará el id-token OIDC federado
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Get public IP of runner
         id: get_ip
@@ -110,7 +104,8 @@ jobs:
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
             | gpg --dearmor \
             | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] \
+            https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
             | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
