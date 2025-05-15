@@ -1,4 +1,3 @@
-# .github/workflows/ci.yml
 name: CI Pipeline
 
 on:
@@ -22,11 +21,11 @@ jobs:
           MSSQL_PID:   "Developer"
         ports:
           - 1433:1433
-        options: >
-          --network-alias sqlserver
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025 -Q \"SELECT 1\""
-          --health-interval=10s
-          --health-timeout=5s
+        options: >-
+          --network-alias sqlserver \
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025 -Q \"SELECT 1\"" \
+          --health-interval=10s \
+          --health-timeout=5s \
           --health-retries=5
 
     steps:
@@ -43,10 +42,10 @@ jobs:
 
       - name: Run pytest against local Docker
         env:
-          SERVER:   "127.0.0.1,1433"
+          SERVER: "127.0.0.1,1433"
           DATABASE: "master"
-          USER:     "SA"
-          PWD:      "DockerSql!2025"
+          USER: "SA"
+          PWD: "DockerSql!2025"
         run: pytest -q
 
   # ------------------------------------------------------------
@@ -65,7 +64,7 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}  # JSON with clientId, clientSecret, subscriptionId, tenantId
 
       - name: Get public IP of runner
         id: get_ip
@@ -75,7 +74,7 @@ jobs:
       - name: Open firewall for this runner
         run: |
           az sql server firewall-rule create \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --resource-group ${{ secrets.AZURE_SQL_RESOURCE_GROUP }} \
             --server          ${{ secrets.AZURE_SQL_SERVER_NAME }} \
             --name            GitHubRunner \
             --start-ip-address ${{ env.RUNNER_IP }} \
@@ -97,16 +96,16 @@ jobs:
 
       - name: Run integration tests against Azure SQL
         env:
-          SERVER:   ${{ secrets.AZURE_SQL_SERVER_NAME }}.database.windows.net
+          SERVER: ${{ secrets.AZURE_SQL_SERVER_NAME }}.database.windows.net
           DATABASE: ${{ secrets.AZURE_SQL_DATABASE }}
-          USER:     ${{ secrets.AZURE_SQL_USER }}
-          PWD:      ${{ secrets.AZURE_SQL_PASSWORD }}
+          USER: ${{ secrets.AZURE_SQL_USER }}
+          PWD: ${{ secrets.AZURE_SQL_PASSWORD }}
         run: pytest tests/integration -q
 
       - name: Close firewall for this runner
         if: always()
         run: |
           az sql server firewall-rule delete \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --resource-group ${{ secrets.AZURE_SQL_RESOURCE_GROUP }} \
             --server          ${{ secrets.AZURE_SQL_SERVER_NAME }} \
             --name            GitHubRunner
