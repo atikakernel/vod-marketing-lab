@@ -21,18 +21,16 @@ jobs:
           MSSQL_PID: "Developer"
         ports:
           - 1433:1433
-        options: >-
+        options: > 
           --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025 -Q \"SELECT 1\""
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 30
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=30
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
@@ -57,8 +55,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Login to Azure
         uses: azure/login@v1
@@ -89,8 +86,7 @@ jobs:
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
             | gpg --dearmor \
             | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] \
-            https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
             | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
