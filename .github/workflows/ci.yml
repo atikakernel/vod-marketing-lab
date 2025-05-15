@@ -22,7 +22,7 @@ jobs:
         image: mcr.microsoft.com/mssql/server:2019-latest
         env:
           ACCEPT_EULA: "Y"
-          SA_PASSWORD: "DockerSql!2025" # Esta es la contraseña que usará el servicio SQL Server
+          SA_PASSWORD: "DockerSql!2025" 
           MSSQL_PID: "Developer"
         ports:
           - 1433:1433
@@ -37,22 +37,15 @@ jobs:
       - name: Install ODBC driver and mssql-tools dependencies
         run: |
           sudo apt-get update
-          # Instalar dependencias para ODBC y curl/gnupg para añadir repositorios
           sudo apt-get install -y unixodbc unixodbc-dev libodbc2 curl gnupg
-          # Añadir la clave de Microsoft
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
             | gpg --dearmor \
             | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
-          # Añadir el repositorio de Microsoft para Ubuntu 22.04 (jammy) para msodbcsql18 y mssql-tools
-          # Nota: Si tu runner usa otra versión de Ubuntu, ajusta 'ubuntu/22.04/prod jammy'
           echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] \
             https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
             | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update
-          # Instalar el driver ODBC y mssql-tools
-          # Aceptar EULA para ambos paquetes
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools
-          # Añadir mssql-tools al PATH para que sqlcmd esté disponible
           echo "/opt/mssql-tools/bin" >> $GITHUB_PATH
 
       - name: Install Python deps
@@ -64,22 +57,19 @@ jobs:
         run: |
           echo "Esperando a que SQL Server arranque..."
           for i in {1..30}; do
-            # sqlcmd ahora debería estar en el PATH
             sqlcmd -S localhost -U SA -P 'DockerSql!2025' -Q "SELECT 1" \
               && { echo "¡SQL Server listo!"; break; }
             echo "Intento $i fallido, reintentando en 2s..."
             sleep 2
           done
-          # Si después de 30 intentos no está listo, el workflow fallará en este punto o en el siguiente
           sqlcmd -S localhost -U SA -P 'DockerSql!2025' -Q "SELECT 1" || exit 1
-
 
       - name: Run pytest against local Docker
         env:
           SERVER: "127.0.0.1,1433"
           DATABASE: "master"
           USER: "SA"
-          SQL_PASSWORD: "DockerSql!2025" # Corregido: Usar SQL_PASSWORD
+          SQL_PASSWORD: "DockerSql!2025" 
         run: pytest -q
 
   # ------------------------------------------------------------
@@ -92,11 +82,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # Usamos ahora azure/login@v2, que sí acepta client-secret directamente
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          auth-type: 'service-principal'
+          auth-type: 'SERVICE_PRINCIPAL' # Corregido: Usar guion bajo
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -128,8 +117,6 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
-          # mssql-tools no es estrictamente necesario aquí a menos que uses sqlcmd
-          # pero si lo necesitaras, lo instalarías de forma similar al job 'test'
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
@@ -138,11 +125,11 @@ jobs:
           SERVER: ${{ secrets.AZURE_SQL_SERVER_NAME }}.database.windows.net
           DATABASE: ${{ secrets.AZURE_SQL_DATABASE }}
           USER: ${{ secrets.AZURE_SQL_USER }}
-          SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }} # Corregido: Usar SQL_PASSWORD
-        run: pytest tests/integration -q # Asumiendo que tus tests de integración están en tests/integration
+          SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }} 
+        run: pytest tests/integration -q 
 
       - name: Close firewall for this runner
-        if: always() # Se ejecuta incluso si los pasos anteriores fallan
+        if: always() 
         run: |
           az sql server firewall-rule delete \
             --resource-group ${{ secrets.AZURE_SQL_RESOURCE_GROUP }} \
