@@ -13,7 +13,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    # TODO: estas vars estarán disponibles para todos los pasos de este job
     env:
       SERVER: "127.0.0.1,1433"
       DATABASE: "master"
@@ -29,41 +28,29 @@ jobs:
           MSSQL_PID: "Developer"
         ports:
           - 1433:1433
-        options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025 -Q \"SELECT 1\""
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+        # <-- quitamos completamente options: para no romper el create
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install ODBC driver dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unixodbc unixodbc-dev curl gnupg
-          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-            | sudo apt-key add -
-          curl -fsSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list \
-            | sudo tee /etc/apt/sources.list.d/mssql-release.list
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
-
       - name: Wait for SQL Server to be ready
         run: |
-          echo "Esperando a que SQL Server arranque..."
+          echo "🔄 Esperando a que SQL Server arranque..."
           for i in {1..30}; do
-            nc -z localhost 1433 && { echo "¡Listo!"; exit 0; }
-            echo "  intentando conexión ($i/30)..."
+            if nc -z localhost 1433; then
+              echo "✅ SQL Server listo."
+              exit 0
+            fi
+            echo "  esperando puerto 1433 ($i/30)…"
             sleep 2
           done
-          echo "Error: SQL Server no arrancó en tiempo" && exit 1
+          echo "❌ SQL Server no arrancó en 60s." && exit 1
 
       - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
