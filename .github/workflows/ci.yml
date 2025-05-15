@@ -21,10 +21,21 @@ jobs:
           MSSQL_PID:   "Developer"
         ports:
           - 1433:1433
-        # eliminamos por completo `options`
+        # notas: ya no usamos --health-cmd aquí
 
     steps:
       - uses: actions/checkout@v3
+
+      - name: Install ODBC driver dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unixodbc unixodbc-dev curl gnupg
+          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+            | sudo apt-key add -
+          curl -fsSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list \
+            | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
 
       - name: Wait for SQL Server to be ready
         run: |
@@ -39,7 +50,7 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -86,7 +97,7 @@ jobs:
       - name: Install ODBC driver & Python deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y unixodbc unixodbc-dev libodbc2 curl gnupg
+          sudo apt-get install -y unixodbc unixodbc-dev curl gnupg
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
             | gpg --dearmor \
             | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
