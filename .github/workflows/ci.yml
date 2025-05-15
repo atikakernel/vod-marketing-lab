@@ -7,59 +7,39 @@ on:
     branches: [ main ]
 
 jobs:
-  # ------------------------------------------------------------
-  # 1) Test rápidos en Docker (unit tests / no tocan Azure)
-  # ------------------------------------------------------------
   test:
     runs-on: ubuntu-latest
-
-    # for all the steps in this job, point at the local SQL Server container:
-    env:
-      SERVER:   "127.0.0.1,1433"
-      DATABASE: "master"
-      USER:     "SA"
-      PWD:      "DockerSql!2025"
-
     services:
       sqlserver:
-        image: mcr.microsoft.com/azure-sql-edge:latest
+        image: mcr.microsoft.com/mssql/server:2019-latest
         env:
-          ACCEPT_EULA: "Y"
           SA_PASSWORD: "DockerSql!2025"
+          ACCEPT_EULA: "Y"
         ports:
           - 1433:1433
         options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'DockerSql!2025' -Q 'SELECT 1'"
+          --health-cmd "echo 'SELECT 1' | /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 12
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-
-      - name: Instalar ODBC driver & deps
+      - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y unixodbc unixodbc-dev curl gnupg
-          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-            | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
-          curl -fsSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list \
-            | sudo tee /etc/apt/sources.list.d/mssql-release.list
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
       - name: Run pytest against local Docker
+        env:
+          SERVER: "127.0.0.1,1433"
+          DATABASE: "master"
+          USER: "SA"
+          PWD: "DockerSql!2025"
         run: pytest -q
 
-  # ------------------------------------------------------------
-  # 2) Integration tests contra tu Azure SQL real
-  # ------------------------------------------------------------
   integration:
     needs: test
     runs-on: ubuntu-latest
@@ -67,19 +47,19 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Login to Azure CLI
-        uses: azure/login@v1
+      - name: Login to Azure
+        uses: azure/login@v2
         with:
           client-id:       ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           client-secret:   ${{ secrets.AZURE_CLIENT_SECRET }}
 
-      - name: Obtener IP pública del runner
+      - name: Get public IP of runner
         id: get_ip
         run: echo "RUNNER_IP=$(curl -s ifconfig.me)" >> $GITHUB_ENV
 
-      - name: Abrir firewall para este runner
+      - name: Open firewall for this runner
         run: |
           az sql server firewall-rule create \
             --resource-group ${{ secrets.AZURE_SQL_RESOURCE_GROUP }} \
@@ -88,13 +68,14 @@ jobs:
             --start-ip-address ${{ env.RUNNER_IP }} \
             --end-ip-address   ${{ env.RUNNER_IP }}
 
-      - name: Instalar ODBC driver & deps
+      - name: Install ODBC driver & Python deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y unixodbc unixodbc-dev curl gnupg
+          sudo apt-get install -y unixodbc unixodbc-dev libodbc2 curl gnupg
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-            | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
-          curl -fsSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
             | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
@@ -103,13 +84,13 @@ jobs:
 
       - name: Run integration tests against Azure SQL
         env:
-          SERVER:   "${{ secrets.AZURE_SQL_SERVER_NAME }}.database.windows.net"
+          SERVER:   ${{ secrets.AZURE_SQL_SERVER_NAME }}.database.windows.net
           DATABASE: ${{ secrets.AZURE_SQL_DATABASE }}
           USER:     ${{ secrets.AZURE_SQL_USER }}
           PWD:      ${{ secrets.AZURE_SQL_PASSWORD }}
         run: pytest tests/integration -q
 
-      - name: Cerrar firewall para este runner
+      - name: Close firewall for this runner
         if: always()
         run: |
           az sql server firewall-rule delete \
