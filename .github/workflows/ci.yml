@@ -21,11 +21,11 @@ jobs:
           MSSQL_PID:   "Developer"
         ports:
           - 1433:1433
-        options: >-
-          --network-alias sqlserver \
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025 -Q \"SELECT 1\"" \
-          --health-interval=10s \
-          --health-timeout=5s \
+        options: |
+          --network-alias sqlserver
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025 -Q \"SELECT 1\""
+          --health-interval=10s
+          --health-timeout=5s
           --health-retries=5
 
     steps:
@@ -64,12 +64,11 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}  # JSON with clientId, clientSecret, subscriptionId, tenantId
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Get public IP of runner
         id: get_ip
-        run: |
-          echo "RUNNER_IP=$(curl -s ifconfig.me)" >> $GITHUB_ENV
+        run: echo "RUNNER_IP=$(curl -s ifconfig.me)" >> $GITHUB_ENV
 
       - name: Open firewall for this runner
         run: |
