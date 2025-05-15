@@ -28,23 +28,17 @@ jobs:
           MSSQL_PID: "Developer"
         ports:
           - 1433:1433
-        # eliminamos completamente `options:` para no romper el create
 
     steps:
       - uses: actions/checkout@v3
 
       - name: Wait for SQL Server to be ready
         run: |
-          echo "🔄 Esperando a que SQL Server arranque..."
           for i in {1..30}; do
-            if nc -z localhost 1433; then
-              echo "✅ SQL Server listo."
-              exit 0
-            fi
-            echo "  esperando puerto 1433 ($i/30)…"
-            sleep 2
+            nc -z localhost 1433 && exit 0
+            echo "⏳ esperando SQL Server… ($i/30)" && sleep 2
           done
-          echo "❌ SQL Server no arrancó en 60s." && exit 1
+          echo "❌ SQL nunca arrancó" && exit 1
 
       - uses: actions/setup-python@v4
         with:
@@ -56,7 +50,7 @@ jobs:
           sudo apt-get install -y unixodbc unixodbc-dev curl gnupg
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
             | gpg --dearmor \
-            | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
+            | sudo tee /usr/share/keyrings/microsoft.gpg >/dev/null
           echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
             | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update
@@ -79,9 +73,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Setup Azure CLI
-        uses: azure/cli@v1
 
       - name: Login to Azure
         uses: azure/login@v1
@@ -106,8 +97,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y unixodbc unixodbc-dev curl gnupg
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-            | gpg --dearmor \
-            | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
+            | gpg --dearmor >/usr/share/keyrings/microsoft.gpg
           echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
             | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update
