@@ -7,9 +7,6 @@ on:
     branches: [ main ]
 
 jobs:
-  # ------------------------------------------------------------
-  # 1) Test rápidos en Docker (unit tests / no tocan Azure)
-  # ------------------------------------------------------------
   test:
     runs-on: ubuntu-latest
     services:
@@ -22,7 +19,8 @@ jobs:
         ports:
           - 1433:1433
         options: >-
-          --health-cmd "echo 'SELECT 1' | /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025"
+          --health-cmd "echo 'SELECT 1' \
+            | /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -46,9 +44,6 @@ jobs:
           PWD:      "DockerSql!2025"
         run: pytest -q
 
-  # ------------------------------------------------------------
-  # 2) Integration tests contra tu Azure SQL real
-  # ------------------------------------------------------------
   integration:
     needs: test
     runs-on: ubuntu-latest
