@@ -21,7 +21,7 @@ jobs:
           MSSQL_PID: "Developer"
         ports:
           - 1433:1433
-        options: > 
+        options: >-
           --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025 -Q \"SELECT 1\""
           --health-interval=10s
           --health-timeout=5s
