@@ -16,20 +16,23 @@ jobs:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2019-latest
         env:
-          SA_PASSWORD: "DockerSql!2025"
           ACCEPT_EULA: "Y"
+          SA_PASSWORD: "DockerSql!2025"
+          MSSQL_PID: "Developer"
         ports:
           - 1433:1433
         options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025 -Q \"SELECT 1\""
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P $${SA_PASSWORD} -Q \"SELECT 1\""
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 30
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
@@ -54,19 +57,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Login to Azure
         uses: azure/login@v1
         with:
-          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-secret:   ${{ secrets.AZURE_CLIENT_SECRET }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
 
       - name: Get public IP of runner
         id: get_ip
-        run: echo "RUNNER_IP=$(curl -s ifconfig.me)" >> $GITHUB_ENV
+        run: |
+          echo "RUNNER_IP=$(curl -s ifconfig.me)" >> $GITHUB_ENV
 
       - name: Open firewall for this runner
         run: |
@@ -93,10 +98,10 @@ jobs:
 
       - name: Run integration tests against Azure SQL
         env:
-          SERVER:   ${{ secrets.AZURE_SQL_SERVER_NAME }}.database.windows.net
+          SERVER: ${{ secrets.AZURE_SQL_SERVER_NAME }}.database.windows.net
           DATABASE: ${{ secrets.AZURE_SQL_DATABASE }}
-          USER:     ${{ secrets.AZURE_SQL_USER }}
-          PWD:      ${{ secrets.AZURE_SQL_PASSWORD }}
+          USER: ${{ secrets.AZURE_SQL_USER }}
+          PWD: ${{ secrets.AZURE_SQL_PASSWORD }}
         run: pytest tests/integration -q
 
       - name: Close firewall for this runner
