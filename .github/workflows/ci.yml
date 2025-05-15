@@ -1,3 +1,4 @@
+# .github/workflows/ci.yml
 name: CI Pipeline
 
 on:
@@ -7,6 +8,9 @@ on:
     branches: [ main ]
 
 jobs:
+  # ------------------------------------------------------------
+  # 1) Test rápidos en Docker (unit tests / no tocan Azure)
+  # ------------------------------------------------------------
   test:
     runs-on: ubuntu-latest
     services:
@@ -18,15 +22,16 @@ jobs:
           MSSQL_PID:   "Developer"
         ports:
           - 1433:1433
-        options: >-
-          --health-cmd "echo 'SELECT 1' \
-            | /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+        options: >
+          --network-alias sqlserver
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025 -Q \"SELECT 1\""
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - uses: actions/checkout@v3
+
       - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
@@ -44,6 +49,9 @@ jobs:
           PWD:      "DockerSql!2025"
         run: pytest -q
 
+  # ------------------------------------------------------------
+  # 2) Integration tests contra tu Azure SQL real
+  # ------------------------------------------------------------
   integration:
     needs: test
     runs-on: ubuntu-latest
@@ -51,22 +59,23 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Setup Azure CLI
+        uses: azure/cli@v1
+
       - name: Login to Azure
-        uses: azure/login@v2
+        uses: azure/login@v1
         with:
-          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-secret:   ${{ secrets.AZURE_CLIENT_SECRET }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Get public IP of runner
         id: get_ip
-        run: echo "RUNNER_IP=$(curl -s ifconfig.me)" >> $GITHUB_ENV
+        run: |
+          echo "RUNNER_IP=$(curl -s ifconfig.me)" >> $GITHUB_ENV
 
       - name: Open firewall for this runner
         run: |
           az sql server firewall-rule create \
-            --resource-group ${{ secrets.AZURE_SQL_RESOURCE_GROUP }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --server          ${{ secrets.AZURE_SQL_SERVER_NAME }} \
             --name            GitHubRunner \
             --start-ip-address ${{ env.RUNNER_IP }} \
@@ -98,6 +107,6 @@ jobs:
         if: always()
         run: |
           az sql server firewall-rule delete \
-            --resource-group ${{ secrets.AZURE_SQL_RESOURCE_GROUP }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --server          ${{ secrets.AZURE_SQL_SERVER_NAME }} \
             --name            GitHubRunner
