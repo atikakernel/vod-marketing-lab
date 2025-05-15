@@ -12,16 +12,28 @@ jobs:
   # ------------------------------------------------------------
   test:
     runs-on: ubuntu-latest
+
+    # TODO: estas vars estarán disponibles para todos los pasos de este job
+    env:
+      SERVER: "127.0.0.1,1433"
+      DATABASE: "master"
+      USER: "SA"
+      PWD: "DockerSql!2025"
+
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2019-latest
         env:
           ACCEPT_EULA: "Y"
           SA_PASSWORD: "DockerSql!2025"
-          MSSQL_PID:   "Developer"
+          MSSQL_PID: "Developer"
         ports:
           - 1433:1433
-        # notas: ya no usamos --health-cmd aquí
+        options: >-
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P DockerSql!2025 -Q \"SELECT 1\""
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v3
@@ -39,12 +51,13 @@ jobs:
 
       - name: Wait for SQL Server to be ready
         run: |
-          echo "Esperando a que SQL Server arranque en el contenedor..."
+          echo "Esperando a que SQL Server arranque..."
           for i in {1..30}; do
-            nc -z localhost 1433 && echo "¡Listo!" && break
-            echo "  intentando conexión... ($i/30)"
+            nc -z localhost 1433 && { echo "¡Listo!"; exit 0; }
+            echo "  intentando conexión ($i/30)..."
             sleep 2
           done
+          echo "Error: SQL Server no arrancó en tiempo" && exit 1
 
       - uses: actions/setup-python@v4
         with:
@@ -56,11 +69,6 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run pytest against local Docker
-        env:
-          SERVER: "127.0.0.1,1433"
-          DATABASE: "master"
-          USER: "SA"
-          PWD: "DockerSql!2025"
         run: pytest -q
 
   # ------------------------------------------------------------
