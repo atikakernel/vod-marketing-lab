@@ -23,11 +23,9 @@ jobs:
           - 1433:1433
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
@@ -38,8 +36,7 @@ jobs:
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
             | gpg --dearmor \
             | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] \
-            https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
             | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
@@ -51,20 +48,17 @@ jobs:
 
       - name: Wait for SQL Server to be ready
         run: |
-          echo "Esperando a que SQL Server arranque..."
           for i in {1..30}; do
-            /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'DockerSql!2025' -Q "SELECT 1" \
-              && { echo "¡SQL Server listo!"; break; }
-            echo "Intento $i fallido, reintentando en 2s..."
+            /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'DockerSql!2025' -Q "SELECT 1" && break
             sleep 2
           done
 
       - name: Run pytest against local Docker
         env:
-          SERVER: "127.0.0.1,1433"
+          SERVER:   "127.0.0.1,1433"
           DATABASE: "master"
-          USER: "SA"
-          PWD: "DockerSql!2025"
+          DB_USER:  "SA"
+          DB_PWD:   "DockerSql!2025"
         run: pytest -q
 
   # ------------------------------------------------------------
@@ -75,18 +69,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Login to Azure
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-secret:   ${{ secrets.AZURE_CLIENT_SECRET }}
 
       - name: Get public IP of runner
         id: get_ip
-        run: |
-          echo "RUNNER_IP=$(curl -s ifconfig.me)" >> $GITHUB_ENV
+        run: echo "RUNNER_IP=$(curl -s ifconfig.me)" >> $GITHUB_ENV
 
       - name: Open firewall for this runner
         run: |
@@ -104,8 +99,7 @@ jobs:
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
             | gpg --dearmor \
             | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] \
-            https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
             | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
@@ -114,10 +108,10 @@ jobs:
 
       - name: Run integration tests against Azure SQL
         env:
-          SERVER: ${{ secrets.AZURE_SQL_SERVER_NAME }}.database.windows.net
+          SERVER:   ${{ secrets.AZURE_SQL_SERVER_NAME }}.database.windows.net
           DATABASE: ${{ secrets.AZURE_SQL_DATABASE }}
-          USER: ${{ secrets.AZURE_SQL_USER }}
-          PWD: ${{ secrets.AZURE_SQL_PASSWORD }}
+          DB_USER:  ${{ secrets.AZURE_SQL_USER }}
+          DB_PWD:   ${{ secrets.AZURE_SQL_PASSWORD }}
         run: pytest tests/integration -q
 
       - name: Close firewall for this runner

@@ -3,21 +3,16 @@ import pytest
 import pandas as pd
 from utils.db import get_sqlserver_conn, load_table
 
-# Fixture para la conexión y preparación de datos
+# --- CREDENCIALES DESDE ENTORNO ----------------------
+server   = os.getenv("SERVER",   "vod-marketing-server.database.windows.net")
+database = os.getenv("DATABASE", "vod_marketing_db")
+user     = os.getenv("DB_USER",  "dbadmin")
+pwd      = os.getenv("DB_PWD",   "@Infernity1")
+# ------------------------------------------------------
+
 @pytest.fixture(scope="module")
 def conn():
-    # Lee las credenciales desde variables de entorno
-    server   = os.environ.get("SERVER", "")
-    database = os.environ.get("DATABASE", "")
-    user     = os.environ.get("USER", "")
-    pwd      = os.environ.get("PWD", "")
-
-    conn = get_sqlserver_conn(
-        server=server,
-        database=database,
-        user=user,
-        pwd=pwd
-    )
+    conn = get_sqlserver_conn(server, database, user, pwd)
     cur = conn.cursor()
     # Asegura esquema y tabla
     cur.execute("""
@@ -39,16 +34,13 @@ def conn():
     conn.close()
 
 def test_get_sqlserver_conn(conn):
-    # La conexión no debe ser None y debe permitir cursor()
     assert conn is not None
     cur = conn.cursor()
     assert hasattr(cur, 'execute')
 
 def test_load_table_returns_dataframe(conn):
-    # Carga exactamente dos filas y las columnas esperadas
     df = load_table(conn, 'Sales.Orders', top_n=2)
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 2
     for col in ['OrderID', 'CustomerName', 'Amount', 'OrderDate']:
         assert col in df.columns
-
