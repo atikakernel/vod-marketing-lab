@@ -1,9 +1,8 @@
 name: CI Pipeline
 
-# 1) Añadimos permisos globales para id-token (necesario para azure/login@v2)
 permissions:
-  contents: read      # para checkout
-  id-token: write     # para que azure/login obtenga el token OIDC
+  contents: read
+  id-token: write
 
 on:
   push:
@@ -12,17 +11,14 @@ on:
     branches: [main]
 
 jobs:
-  # ------------------------------------------------------------
-  # 1) Test rápidos en Docker (unit tests / no tocan Azure)
-  # ------------------------------------------------------------
-  test:
+  test: # Este job prueba contra Docker
     runs-on: ubuntu-latest
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2019-latest
         env:
           ACCEPT_EULA: "Y"
-          SA_PASSWORD: "DockerSql!2025" 
+          SA_PASSWORD: "DockerSql!2025"
           MSSQL_PID: "Developer"
         ports:
           - 1433:1433
@@ -64,18 +60,15 @@ jobs:
           done
           sqlcmd -S localhost -U SA -P 'DockerSql!2025' -Q "SELECT 1" || exit 1
 
-      - name: Run pytest against local Docker
+      - name: Run unit tests against local Docker
         env:
           SERVER: "127.0.0.1,1433"
           DATABASE: "master"
           USER: "SA"
-          SQL_PASSWORD: "DockerSql!2025" 
-        run: pytest -q
+          SQL_PASSWORD: "DockerSql!2025"
+        run: pytest tests/test_db_utils.py -q # Ejecuta solo los tests unitarios
 
-  # ------------------------------------------------------------
-  # 2) Integration tests contra tu Azure SQL real
-  # ------------------------------------------------------------
-  integration:
+  integration: # Este job prueba contra Azure SQL
     needs: test
     runs-on: ubuntu-latest
 
@@ -85,7 +78,7 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          auth-type: 'SERVICE_PRINCIPAL' # Corregido: Usar guion bajo
+          auth-type: 'SERVICE_PRINCIPAL'
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -104,6 +97,11 @@ jobs:
             --name            GitHubRunner \
             --start-ip-address ${{ env.RUNNER_IP }} \
             --end-ip-address   ${{ env.RUNNER_IP }}
+
+      - name: Wait for firewall rule to propagate
+        run: |
+          echo "Esperando 15 segundos para que la regla de firewall se propague..."
+          sleep 15
 
       - name: Install ODBC driver & Python deps
         run: |
@@ -125,11 +123,11 @@ jobs:
           SERVER: ${{ secrets.AZURE_SQL_SERVER_NAME }}.database.windows.net
           DATABASE: ${{ secrets.AZURE_SQL_DATABASE }}
           USER: ${{ secrets.AZURE_SQL_USER }}
-          SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }} 
-        run: pytest tests/integration -q 
+          SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }}
+        run: pytest tests/integration -q # Ejecuta solo los tests en la carpeta integration
 
       - name: Close firewall for this runner
-        if: always() 
+        if: always()
         run: |
           az sql server firewall-rule delete \
             --resource-group ${{ secrets.AZURE_SQL_RESOURCE_GROUP }} \
