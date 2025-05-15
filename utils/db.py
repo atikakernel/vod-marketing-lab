@@ -4,19 +4,21 @@ import pandas as pd
 import pyodbc
 
 def get_sqlserver_conn(server: str, database: str, user: str, pwd: str):
-    """
-    Obtiene una conexión ODBC a SQL Server.
-    Para entornos con certificados autofirmados (Docker local), deshabilita SSL
-    y confía en el certificado del servidor.
-    """
+    # ...
+    is_azure_sql = ".database.windows.net" in server.lower()
+    
+    encrypt_option = "yes" if is_azure_sql else "no"
+    trust_cert_option = "no" if is_azure_sql else "yes" # Para Azure, confía en el certificado del sistema
+
     conn_str = (
         "DRIVER={ODBC Driver 18 for SQL Server};"
         f"SERVER={server};"
         f"DATABASE={database};"
         f"UID={user};"
         f"PWD={pwd};"
-        "Encrypt=no;"                    # Desactiva la encriptación SSL
-        "TrustServerCertificate=yes"     # Confía en el certificado del servidor
+        f"Encrypt={encrypt_option};"
+        f"TrustServerCertificate={trust_cert_option};"
+        # Podrías necesitar "Connection Timeout=30;" para conexiones a Azure
     )
     return pyodbc.connect(conn_str)
 
