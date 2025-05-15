@@ -18,7 +18,7 @@ jobs:
         env:
           ACCEPT_EULA: "Y"
           SA_PASSWORD: "DockerSql!2025"
-          MSSQL_PID: "Developer"
+          MSSQL_PID:   "Developer"
         ports:
           - 1433:1433
         options: >-
@@ -40,10 +40,10 @@ jobs:
 
       - name: Run pytest against local Docker
         env:
-          SERVER: "127.0.0.1,1433"
+          SERVER:   "127.0.0.1,1433"
           DATABASE: "master"
-          USER: "SA"
-          PWD: "DockerSql!2025"
+          USER:     "SA"
+          PWD:      "DockerSql!2025"
         run: pytest -q
 
   # ------------------------------------------------------------
