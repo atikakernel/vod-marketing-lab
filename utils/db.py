@@ -6,17 +6,17 @@ import pyodbc
 def get_sqlserver_conn(server: str, database: str, user: str, pwd: str):
     """
     Obtiene una conexión ODBC a SQL Server.
-    Para entornos locales (Docker) con self-signed certs,
-    desactivamos encriptación y confiamos en el certificado:
+    Para entornos con certificados autofirmados (Docker local), deshabilita SSL
+    y confía en el certificado del servidor.
     """
     conn_str = (
-        f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+        "DRIVER={ODBC Driver 18 for SQL Server};"
         f"SERVER={server};"
         f"DATABASE={database};"
         f"UID={user};"
         f"PWD={pwd};"
-        f"Encrypt=no;"                    # deshabilita encriptación SSL
-        f"TrustServerCertificate=yes"     # confía en el certificado del servidor
+        "Encrypt=no;"                    # Desactiva la encriptación SSL
+        "TrustServerCertificate=yes"     # Confía en el certificado del servidor
     )
     return pyodbc.connect(conn_str)
 
