@@ -1,5 +1,10 @@
 name: CI Pipeline
 
+# 👇 1) permisos para OIDC
+permissions:
+  contents: read        # checkout del repo
+  id-token: write       # para azure/login via OIDC
+
 on:
   push:
     branches: [ main ]
@@ -67,7 +72,7 @@ jobs:
         run: pytest -q
 
   # ------------------------------------------------------------
-  # 2) Integration tests contra tu Azure SQL real
+  # 2) Integration tests contra tu Azure SQL real (via OIDC)
   # ------------------------------------------------------------
   integration:
     needs: test
@@ -77,14 +82,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Login to Azure
+      - name: Login to Azure via OIDC
         uses: azure/login@v1
         with:
-          auth-type: service-principal       # fuerza SP auth en lugar de OIDC
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+        # no client-secret: usará el id-token OIDC federado
 
       - name: Get public IP of runner
         id: get_ip
