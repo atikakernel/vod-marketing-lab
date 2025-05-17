@@ -1,11 +1,9 @@
 name: CI Pipeline
 
-# Permisos globales
 permissions:
-  contents: read      # para checkout
-  id-token: write     # para que azure/login obtenga el token OIDC
+  contents: read
+  id-token: write
 
-# Disparadores del workflow
 on:
   push:
     branches: [main]
@@ -13,7 +11,7 @@ on:
     branches: [main]
 
 jobs:
-  test: # Pruebas unitarias y dbt contra SQL Server en Docker
+  test:
     runs-on: ubuntu-latest
     services:
       sqlserver:
@@ -32,18 +30,15 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12' # <--- CAMBIO AQUÍ: Fijar a Python 3.12
+          python-version: '3.12' # Fijado a Python 3.12
 
       - name: Install ODBC driver and mssql-tools
         run: |
           sudo apt-get update -y
           sudo apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg
-
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
           sudo chmod a+r /usr/share/keyrings/microsoft-prod.gpg
-
           echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" | sudo tee /etc/apt/sources.list.d/mssql-release.list > /dev/null
-          
           sudo apt-get update -y
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools unixodbc-dev
           echo "/opt/mssql-tools/bin" >> $GITHUB_PATH
@@ -69,9 +64,12 @@ jobs:
         run: |
           echo "Creando esquema Sales y tabla Sales.Orders si no existen..."
           sqlcmd -S localhost -U SA -P "${SA_PASSWORD}" -d master -Q "IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Sales') EXEC('CREATE SCHEMA Sales');"
-          sqlcmd -S localhost -U SA -P "${SA_PASSWORD}" -d master -Q "IF OBJECT_ID('Sales.Orders', 'U') IS NULL CREATE TABLE Sales.Orders (OrderID INT PRIMARY KEY, CustomerName NVARCHAR(100), Amount DECIMAL(10,2), OrderDate DATETIME2);"
-          echo "Insertando datos de muestra en Sales.Orders..."
-          sqlcmd -S localhost -U SA -P "${SA_PASSWORD}" -d master -Q "DELETE FROM Sales.Orders; INSERT INTO Sales.Orders (OrderID, CustomerName, Amount, OrderDate) VALUES (1, 'Cliente CI 1', 100.50, GETDATE()), (2, 'Cliente CI 2', 75.25, GETDATE());"
+          # --- CAMBIO AQUÍ: Añadir IDENTITY a OrderID ---
+          sqlcmd -S localhost -U SA -P "${SA_PASSWORD}" -d master -Q "IF OBJECT_ID('Sales.Orders', 'U') IS NULL CREATE TABLE Sales.Orders (OrderID INT IDENTITY(1,1) PRIMARY KEY, CustomerName NVARCHAR(100), Amount DECIMAL(10,2), OrderDate DATETIME2);"
+          
+          echo "Insertando datos de muestra en Sales.Orders (sin especificar OrderID)..."
+          # --- CAMBIO AQUÍ: No insertar OrderID, dejar que IDENTITY lo genere ---
+          sqlcmd -S localhost -U SA -P "${SA_PASSWORD}" -d master -Q "DELETE FROM Sales.Orders; DBCC CHECKIDENT ('Sales.Orders', RESEED, 0); INSERT INTO Sales.Orders (CustomerName, Amount, OrderDate) VALUES ('Cliente CI 1', 100.50, GETDATE()), ('Cliente CI 2', 75.25, GETDATE());"
 
       - name: Setup dbt profiles.yml for CI
         shell: bash
@@ -130,7 +128,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12' # <--- CAMBIO AQUÍ: Fijar a Python 3.12
+          python-version: '3.12' 
 
       - name: Login to Azure
         uses: azure/login@v2
