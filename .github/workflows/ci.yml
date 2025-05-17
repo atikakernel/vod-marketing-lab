@@ -30,7 +30,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12' # Fijado a Python 3.12
+          python-version: '3.12' 
 
       - name: Install ODBC driver and mssql-tools
         run: |
@@ -64,11 +64,8 @@ jobs:
         run: |
           echo "Creando esquema Sales y tabla Sales.Orders si no existen..."
           sqlcmd -S localhost -U SA -P "${SA_PASSWORD}" -d master -Q "IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Sales') EXEC('CREATE SCHEMA Sales');"
-          # --- CAMBIO AQUÍ: Añadir IDENTITY a OrderID ---
           sqlcmd -S localhost -U SA -P "${SA_PASSWORD}" -d master -Q "IF OBJECT_ID('Sales.Orders', 'U') IS NULL CREATE TABLE Sales.Orders (OrderID INT IDENTITY(1,1) PRIMARY KEY, CustomerName NVARCHAR(100), Amount DECIMAL(10,2), OrderDate DATETIME2);"
-          
           echo "Insertando datos de muestra en Sales.Orders (sin especificar OrderID)..."
-          # --- CAMBIO AQUÍ: No insertar OrderID, dejar que IDENTITY lo genere ---
           sqlcmd -S localhost -U SA -P "${SA_PASSWORD}" -d master -Q "DELETE FROM Sales.Orders; DBCC CHECKIDENT ('Sales.Orders', RESEED, 0); INSERT INTO Sales.Orders (CustomerName, Amount, OrderDate) VALUES ('Cliente CI 1', 100.50, GETDATE()), ('Cliente CI 2', 75.25, GETDATE());"
 
       - name: Setup dbt profiles.yml for CI
@@ -155,8 +152,8 @@ jobs:
 
       - name: Wait for firewall rule to propagate
         run: |
-          echo "Esperando 15 segundos para que la regla de firewall se propague..."
-          sleep 15
+          echo "Esperando 30 segundos para que la regla de firewall se propague..." # <--- CAMBIO AQUÍ
+          sleep 30 # <--- CAMBIO AQUÍ de 15 a 30
 
       - name: Install ODBC driver & Python deps
         run: |
