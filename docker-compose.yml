@@ -1,0 +1,17 @@
+        version: '3.8'
+        services:
+          sqlserver_dbt_test: # Puedes nombrar el servicio como quieras
+            image: mcr.microsoft.com/mssql/server:2019-latest
+            container_name: sql_server_for_dbt_tests # Nombre del contenedor
+            environment:
+              ACCEPT_EULA: "Y"
+              SA_PASSWORD: "DockerSql!2025" # ¡La misma contraseña que en profiles.yml!
+              MSSQL_PID: "Developer" # O la edición que prefieras
+            ports:
+              - "1433:1433" # Mapea el puerto 1433 del contenedor al 1433 de tu máquina
+            volumes:
+              - sql_server_dbt_data:/var/opt/mssql # Volumen para persistir los datos de SQL Server
+        
+        volumes:
+          sql_server_dbt_data: # Define el volumen
+        

@@ -1,0 +1,31 @@
+[0m08:40:57.969870 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f87cfffc8f0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f87cfffc6e0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f87d02b8fb0>]}
+
+
+============================== 08:40:57.979888 | 34a1aba7-4ea8-489e-8a84-e3c21316307f ==============================
+[0m08:40:57.979888 [info ] [MainThread]: Running with dbt=1.8.9
+[0m08:40:57.980712 [debug] [MainThread]: running dbt with arguments {'printer_width': '80', 'indirect_selection': 'eager', 'write_json': 'True', 'log_cache_events': 'False', 'partial_parse': 'True', 'cache_selected_only': 'False', 'profiles_dir': '/home/diegokernel/.dbt', 'debug': 'False', 'fail_fast': 'False', 'log_path': 'logs', 'version_check': 'True', 'warn_error': 'None', 'use_colors': 'True', 'use_experimental_parser': 'False', 'no_print': 'None', 'quiet': 'False', 'empty': 'None', 'log_format': 'default', 'invocation_command': 'dbt init vod-marketing', 'warn_error_options': 'WarnErrorOptions(include=[], exclude=[])', 'static_parser': 'True', 'target_path': 'None', 'introspect': 'True', 'send_anonymous_usage_stats': 'True'}
+[0m08:40:58.005646 [warn ] [MainThread]: [ConfigFolderDirectory]: Unable to parse logging event dictionary. Failed to parse dir field: expected string or bytes-like object, got 'PosixPath'.. Dictionary: {'dir': PosixPath('/home/diegokernel/.dbt')}
+[0m08:40:58.006946 [info ] [MainThread]: Creating dbt configuration folder at 
+[0m08:41:20.274681 [debug] [MainThread]: Starter project path: /home/diegokernel/vod-marketing-lab/.venv/lib/python3.12/site-packages/dbt/include/starter_project
+[0m08:41:20.294868 [info ] [MainThread]: 
+Your new dbt project "vod_marketing" was created!
+
+For more information on how to configure the profiles.yml file,
+please consult the dbt documentation here:
+
+  https://docs.getdbt.com/docs/configure-your-profile
+
+One more thing:
+
+Need help? Don't hesitate to reach out to us via GitHub issues or on Slack:
+
+  https://community.getdbt.com/
+
+Happy modeling!
+
+[0m08:41:20.295592 [info ] [MainThread]: Setting up your profile.
+[0m08:42:47.458039 [info ] [MainThread]: Profile vod_marketing written to /home/diegokernel/.dbt/profiles.yml using target's profile_template.yml and your supplied values. Run 'dbt debug' to validate the connection.
+[0m08:42:47.471412 [debug] [MainThread]: Resource report: {"command_name": "init", "command_success": true, "command_wall_clock_time": 109.56952, "process_in_blocks": "1512", "process_kernel_time": 0.140741, "process_mem_max_rss": "112692", "process_out_blocks": "80", "process_user_time": 1.759266}
+[0m08:42:47.474793 [debug] [MainThread]: Command `dbt init` succeeded at 08:42:47.474561 after 109.57 seconds
+[0m08:42:47.475544 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f87cffc8260>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f87d3ea33e0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f87ceba80e0>]}
+[0m08:42:47.476429 [debug] [MainThread]: Flushing usage events

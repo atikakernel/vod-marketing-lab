@@ -1,0 +1,32 @@
+version: 2
+
+models: # <--- SIN INDENTACIÓN AQUÍ
+  - name: stg_orders  # Este es el nombre de tu archivo SQL (stg_orders.sql)
+    description: "Modelo de staging para las órdenes. Contiene una fila por cada orden de la tabla fuente, con algunas transformaciones básicas si se aplicaron."
+    columns:
+      - name: OrderID
+        description: "La clave primaria única para cada orden."
+        tests:
+          - unique   # Prueba que cada valor en esta columna sea único.
+          - not_null # Prueba que no haya valores nulos en esta columna.
+
+      - name: CustomerName
+        description: "Nombre del cliente que realizó la orden."
+        tests:
+          - not_null # Ejemplo: Asegurar que siempre tengamos un nombre de cliente.
+
+      - name: Amount
+        description: "Monto total de la orden."
+        tests:
+          - not_null
+          # Podríamos añadir una prueba para asegurar que el monto sea positivo.
+          # Esto se puede hacer con una prueba SQL personalizada o un paquete como dbt-utils.
+          # Por ejemplo, con dbt-utils (requeriría instalar el paquete):
+          # - dbt_utils.expression_is_true:
+          #     expression: ">= 0"
+
+      - name: OrderDate
+        description: "Fecha y hora en que se realizó la orden."
+        tests:
+          - not_null
+ 

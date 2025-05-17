@@ -2,7 +2,7 @@ name: CI Pipeline
 
 permissions:
   contents: read
-  id-token: write
+  id-token: write # Necesario para el login OIDC a Azure en el job de integración
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
     branches: [main]
 
 jobs:
-  test: # Este job prueba contra Docker
+  test: # Pruebas unitarias y dbt contra SQL Server en Docker
     runs-on: ubuntu-latest
     services:
       sqlserver:
@@ -24,54 +24,109 @@ jobs:
           - 1433:1433
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      - name: Install ODBC driver and mssql-tools dependencies
+      - name: Install ODBC driver and mssql-tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y unixodbc unixodbc-dev libodbc2 curl gnupg
-          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-            | gpg --dearmor \
-            | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] \
-            https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
-            | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          # Usar el repo de Ubuntu 22.04 (jammy) para compatibilidad de mssql-tools y msodbcsql18
+          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+          sudo chmod a+r /usr/share/keyrings/microsoft-prod.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" | sudo tee /etc/apt/sources.list.d/mssql-release.list > /dev/null
           sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools unixodbc-dev
           echo "/opt/mssql-tools/bin" >> $GITHUB_PATH
 
-      - name: Install Python deps
+      - name: Install Python dependencies (including dbt)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt # Asume que dbt-core y dbt-sqlserver están en requirements.txt
+                                          # o instálalos explícitamente aquí:
+                                          # pip install dbt-core dbt-sqlserver
 
       - name: Wait for SQL Server to be ready
         run: |
           echo "Esperando a que SQL Server arranque..."
           for i in {1..30}; do
-            sqlcmd -S localhost -U SA -P 'DockerSql!2025' -Q "SELECT 1" \
-              && { echo "¡SQL Server listo!"; break; }
+            sqlcmd -S localhost -U SA -P "DockerSql!2025" -Q "SELECT 1" && { echo "¡SQL Server listo!"; break; }
             echo "Intento $i fallido, reintentando en 2s..."
             sleep 2
           done
-          sqlcmd -S localhost -U SA -P 'DockerSql!2025' -Q "SELECT 1" || exit 1
+          sqlcmd -S localhost -U SA -P "DockerSql!2025" -Q "SELECT 1" || exit 1
+      
+      - name: Create schema and source table for dbt in Docker SQL
+        env:
+          SA_PASSWORD: "DockerSql!2025" # Para usar en el script SQL
+        run: |
+          echo "Creando esquema Sales y tabla Sales.Orders si no existen..."
+          sqlcmd -S localhost -U SA -P "${SA_PASSWORD}" -d master -Q "IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Sales') EXEC('CREATE SCHEMA Sales');"
+          sqlcmd -S localhost -U SA -P "${SA_PASSWORD}" -d master -Q "IF OBJECT_ID('Sales.Orders', 'U') IS NULL CREATE TABLE Sales.Orders (OrderID INT PRIMARY KEY, CustomerName NVARCHAR(100), Amount DECIMAL(10,2), OrderDate DATETIME2);"
+          echo "Insertando datos de muestra en Sales.Orders..."
+          sqlcmd -S localhost -U SA -P "${SA_PASSWORD}" -d master -Q "DELETE FROM Sales.Orders; INSERT INTO Sales.Orders (OrderID, CustomerName, Amount, OrderDate) VALUES (1, 'Cliente CI 1', 100.50, GETDATE()), (2, 'Cliente CI 2', 75.25, GETDATE());"
 
-      - name: Run unit tests against local Docker
+      - name: Setup dbt profiles.yml for CI
+        # Esto crea un archivo profiles.yml temporal para que dbt lo use en el runner de CI.
+        # Asume que tu proyecto dbt se llama 'vod_marketing' y está en la carpeta 'vod_marketing'.
+        # El perfil también se llama 'vod_marketing'.
+        shell: bash
+        env:
+          DBT_SERVER: "localhost,1433"
+          DBT_DATABASE: "master"
+          DBT_SCHEMA: "dbo" # dbt creará sus modelos en este esquema por defecto
+          DBT_USER: "SA"
+          DBT_PASSWORD: "DockerSql!2025"
+          DBT_PROJECT_DIR: "vod_marketing" # El nombre de la carpeta de tu proyecto dbt
+        run: |
+          echo "Creando ~/.dbt/profiles.yml para el runner de CI..."
+          mkdir -p ~/.dbt
+          cat <<EOF > ~/.dbt/profiles.yml
+          ${DBT_PROJECT_DIR}: # Nombre del perfil, debe coincidir con dbt_project.yml
+            target: dev
+            outputs:
+              dev:
+                type: sqlserver
+                driver: 'ODBC Driver 18 for SQL Server'
+                server: "${DBT_SERVER}"
+                port: 1433
+                database: "${DBT_DATABASE}"
+                schema: "${DBT_SCHEMA}" # Esquema donde dbt materializará sus modelos
+                user: "${DBT_USER}"
+                password: "${DBT_PASSWORD}"
+                encrypt: False # Para Docker local
+                trust_cert: True # Para Docker local con cert autofirmado
+                threads: 1
+          EOF
+          echo "Contenido de ~/.dbt/profiles.yml:"
+          cat ~/.dbt/profiles.yml
+
+      - name: Run dbt build (models and tests)
+        # Navega al directorio de tu proyecto dbt y ejecuta dbt build
+        # dbt build = dbt run + dbt test + dbt seed (si hay seeds) + dbt snapshot (si hay snapshots)
+        working-directory: ./vod_marketing # Asegúrate que esta sea la ruta a tu proyecto dbt
+        run: |
+          echo "Verificando conexión dbt..."
+          dbt debug
+          echo "Construyendo modelos y ejecutando pruebas dbt..."
+          dbt build
+
+      - name: Run Pytest unit tests (utils.db)
         env:
           SERVER: "127.0.0.1,1433"
           DATABASE: "master"
           USER: "SA"
-          SQL_PASSWORD: "DockerSql!2025"
-        run: pytest tests/test_db_utils.py -q # Ejecuta solo los tests unitarios
+          SQL_PASSWORD: "DockerSql!2025" # La variable que usa tu test_db_utils.py
+        run: pytest tests/test_db_utils.py -q
 
-  integration: # Este job prueba contra Azure SQL
+  integration: # Pruebas de integración contra Azure SQL
     needs: test
     runs-on: ubuntu-latest
-
+    # ... (el resto del job de integración permanece igual que antes) ...
     steps:
       - uses: actions/checkout@v3
 
@@ -106,25 +161,23 @@ jobs:
       - name: Install ODBC driver & Python deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y unixodbc unixodbc-dev libodbc2 curl gnupg
-          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-            | gpg --dearmor \
-            | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] \
-            https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
-            | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          # Usar el repo de Ubuntu 22.04 (jammy) para compatibilidad de msodbcsql18
+          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+          sudo chmod a+r /usr/share/keyrings/microsoft-prod.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" | sudo tee /etc/apt/sources.list.d/mssql-release.list > /dev/null
           sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt # Asume que dbt-core y dbt-sqlserver están en requirements.txt
+                                          # o instálalos explícitamente aquí si no lo están.
 
-      - name: Run integration tests against Azure SQL
+      - name: Run integration tests against Azure SQL (Pytest)
         env:
           SERVER: ${{ secrets.AZURE_SQL_SERVER_NAME }}.database.windows.net
           DATABASE: ${{ secrets.AZURE_SQL_DATABASE }}
           USER: ${{ secrets.AZURE_SQL_USER }}
           SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }}
-        run: pytest tests/integration -q # Ejecuta solo los tests en la carpeta integration
+        run: pytest tests/integration -q 
 
       - name: Close firewall for this runner
         if: always()

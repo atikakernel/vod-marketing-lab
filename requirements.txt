@@ -1,3 +1,8 @@
 pandas
 pyodbc
 pytest
+dbt-core~=1.8.0 # O la versión que estés usando, ej. 1.8.9
+dbt-sqlserver~=1.8.0 # O la versión que estés usando, ej. 1.8.7
+python-dotenv # Si lo usas para el notebook
+papermill # Si lo usas para el notebook
+ipykernel # Para el notebook

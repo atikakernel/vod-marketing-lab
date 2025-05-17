@@ -1,0 +1,26 @@
+# En VOD-MARKETING-LAB/vod_marketing/dbt_project.yml
+name: 'vod_marketing' # Nombre de tu proyecto
+version: '1.0.0'
+config-version: 2
+
+profile: 'vod_marketing' # <--- ESTA LÍNEA DEBE COINCIDIR
+
+# Rutas de modelos, análisis, tests, etc.
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets: # directorios a limpiar con `dbt clean`
+  - "target"
+  - "dbt_packages"
+
+# Configuración para tus modelos (ejemplo)
+models:
+  vod_marketing: # Nombre de tu proyecto otra vez
+    # Configs aplicadas a todos los modelos en tu proyecto
+    +materialized: view # Por defecto, crea vistas. Puedes cambiar a 'table'
+    example: # Configs para la subcarpeta 'example' dentro de 'models'
+      +materialized: view

@@ -1,0 +1,21 @@
+version: 2
+
+sources: # <--- SIN INDENTACIÓN AQUÍ
+  - name: tienda_fuente # Un nombre lógico para tu grupo de fuentes
+    description: "Tablas fuente de la base de datos SQL Server en Docker."
+    database: master # La base de datos donde está tu tabla
+    schema: Sales    # El esquema donde está tu tabla 'Orders'
+    tables:
+      - name: Orders # El nombre exacto de tu tabla en la base de datos
+        description: "Tabla de órdenes de ventas."
+        # Opcional: puedes listar columnas aquí si quieres documentarlas o probarlas
+        # columns:
+        #   - name: OrderID
+        #     description: "Clave primaria de la orden."
+        #     tests:
+        #       - unique
+        #       - not_null
+        #   - name: CustomerName
+        #   - name: Amount
+        #   - name: OrderDate
+   
