@@ -6,7 +6,7 @@ permissions:
   id-token: write     # para que azure/login obtenga el token OIDC
 
 # Disparadores del workflow
-on: # Asegúrate de que 'on:' esté al inicio de la línea, sin indentación
+on:
   push:
     branches: [main]
   pull_request:
@@ -32,7 +32,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.12' # <--- CAMBIO AQUÍ: Fijar a Python 3.12
 
       - name: Install ODBC driver and mssql-tools
         run: |
@@ -81,7 +81,7 @@ jobs:
           DBT_SCHEMA: "dbo" 
           DBT_USER: "SA"
           DBT_PASSWORD: "DockerSql!2025"
-          DBT_PROJECT_DIR: "vod_marketing" # El nombre de la carpeta de tu proyecto dbt
+          DBT_PROJECT_DIR: "vod_marketing" 
         run: |
           echo "Creando ~/.dbt/profiles.yml para el runner de CI..."
           mkdir -p ~/.dbt
@@ -106,7 +106,7 @@ jobs:
           cat ~/.dbt/profiles.yml
 
       - name: Run dbt build (models and tests)
-        working-directory: ./vod_marketing # Asegúrate que esta sea la ruta a tu proyecto dbt
+        working-directory: ./vod_marketing 
         run: |
           echo "Verificando conexión dbt..."
           dbt debug
@@ -126,6 +126,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12' # <--- CAMBIO AQUÍ: Fijar a Python 3.12
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -182,4 +187,3 @@ jobs:
             --resource-group ${{ secrets.AZURE_SQL_RESOURCE_GROUP }} \
             --server          ${{ secrets.AZURE_SQL_SERVER_NAME }} \
             --name            GitHubRunner
-
