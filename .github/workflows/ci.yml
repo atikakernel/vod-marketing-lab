@@ -1,4 +1,16 @@
-# ... (inicio del archivo ci.yml) ...
+name: CI Pipeline
+
+# Permisos globales
+permissions:
+  contents: read      # para checkout
+  id-token: write     # para que azure/login obtenga el token OIDC
+
+# Disparadores del workflow
+on: # Asegúrate de que 'on:' esté al inicio de la línea, sin indentación
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   test: # Pruebas unitarias y dbt contra SQL Server en Docker
@@ -24,26 +36,17 @@ jobs:
 
       - name: Install ODBC driver and mssql-tools
         run: |
-          sudo apt-get update -y # Añadir -y para no interactivo
-          sudo apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg # Dependencias base
+          sudo apt-get update -y
+          sudo apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg
 
-          # Descargar y añadir la clave GPG de Microsoft de forma no interactiva
-          # Guardar la clave en /etc/apt/trusted.gpg.d/ para que apt la encuentre automáticamente
-          # o en /usr/share/keyrings/ si se especifica con signed-by= en el sources.list
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
-          sudo chmod a+r /usr/share/keyrings/microsoft-prod.gpg # Asegurar permisos de lectura
+          sudo chmod a+r /usr/share/keyrings/microsoft-prod.gpg
 
-          # Añadir el repositorio de Microsoft para Ubuntu 22.04 (jammy)
-          # Usamos signed-by= para apuntar explícitamente a la clave que descargamos
           echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" | sudo tee /etc/apt/sources.list.d/mssql-release.list > /dev/null
           
           sudo apt-get update -y
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools unixodbc-dev
           echo "/opt/mssql-tools/bin" >> $GITHUB_PATH
-
-      # ... (resto de los pasos del job test: Install Python deps, Wait for SQL, Create schema, Setup dbt, Run dbt, Run Pytest) ...
-      # Asegúrate de que el resto de los pasos de este job 'test' sigan igual que en la versión anterior
-      # que te proporcioné (con ID: ci_yml_with_dbt)
 
       - name: Install Python dependencies (including dbt)
         run: |
@@ -78,7 +81,7 @@ jobs:
           DBT_SCHEMA: "dbo" 
           DBT_USER: "SA"
           DBT_PASSWORD: "DockerSql!2025"
-          DBT_PROJECT_DIR: "vod_marketing" 
+          DBT_PROJECT_DIR: "vod_marketing" # El nombre de la carpeta de tu proyecto dbt
         run: |
           echo "Creando ~/.dbt/profiles.yml para el runner de CI..."
           mkdir -p ~/.dbt
@@ -103,7 +106,7 @@ jobs:
           cat ~/.dbt/profiles.yml
 
       - name: Run dbt build (models and tests)
-        working-directory: ./vod_marketing 
+        working-directory: ./vod_marketing # Asegúrate que esta sea la ruta a tu proyecto dbt
         run: |
           echo "Verificando conexión dbt..."
           dbt debug
@@ -118,10 +121,9 @@ jobs:
           SQL_PASSWORD: "DockerSql!2025" 
         run: pytest tests/test_db_utils.py -q
 
-  integration: # Pruebas de integración contra Azure SQL
+  integration: 
     needs: test
     runs-on: ubuntu-latest
-    # ... (el resto del job de integración permanece igual que antes, sin cambios aquí) ...
     steps:
       - uses: actions/checkout@v3
 
@@ -180,3 +182,4 @@ jobs:
             --resource-group ${{ secrets.AZURE_SQL_RESOURCE_GROUP }} \
             --server          ${{ secrets.AZURE_SQL_SERVER_NAME }} \
             --name            GitHubRunner
+
