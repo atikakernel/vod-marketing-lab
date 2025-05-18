@@ -1,0 +1,20 @@
+version: 2
+
+models: # <--- SIN INDENTACIÓN AQUÍ
+  - name: mart_monthly_sales
+    description: "Modelo final (mart) que resume las ventas totales y el número de órdenes por mes. Listo para ser consumido por herramientas de BI o análisis."
+    columns:
+      - name: sales_year_month
+        description: "El año y mes de las ventas (formato AAAA-MM)."
+        tests:
+          - unique
+          - not_null
+      - name: total_monthly_orders
+        description: "El número total de órdenes realizadas en ese mes."
+        tests:
+          - not_null
+      - name: total_monthly_sales
+        description: "El monto total de ventas para ese mes."
+        tests:
+          - not_null
+    

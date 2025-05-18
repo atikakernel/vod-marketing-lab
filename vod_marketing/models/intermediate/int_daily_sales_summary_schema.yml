@@ -1,0 +1,19 @@
+version: 2
+
+models: # <--- SIN INDENTACIÓN AQUÍ
+  - name: int_daily_sales_summary
+    description: "Agrega las ventas y el número de órdenes por día a partir de las órdenes de staging. Este es un modelo intermedio para facilitar agregaciones posteriores."
+    columns:
+      - name: order_day
+        description: "La fecha de la orden (sin la hora)."
+        tests:
+          - unique
+          - not_null
+      - name: total_orders
+        description: "El número total de órdenes realizadas en ese día."
+        tests:
+          - not_null
+      - name: total_sales_amount
+        description: "El monto total de ventas para ese día."
+        tests:
+          - not_null
